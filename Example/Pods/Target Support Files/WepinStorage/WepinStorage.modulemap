@@ -1,0 +1,6 @@
+framework module WepinStorage {
+  umbrella header "WepinStorage-umbrella.h"
+
+  export *
+  module * { export * }
+}

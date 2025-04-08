@@ -1,0 +1,11 @@
+CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = NO
+FRAMEWORK_SEARCH_PATHS = $(inherited) "${PODS_CONFIGURATION_BUILD_DIR}/AppAuth" "${PODS_CONFIGURATION_BUILD_DIR}/BCrypt" "${PODS_CONFIGURATION_BUILD_DIR}/WepinCommon" "${PODS_CONFIGURATION_BUILD_DIR}/WepinLogin" "${PODS_CONFIGURATION_BUILD_DIR}/WepinModal" "${PODS_CONFIGURATION_BUILD_DIR}/WepinNetwork" "${PODS_CONFIGURATION_BUILD_DIR}/WepinSession" "${PODS_CONFIGURATION_BUILD_DIR}/WepinStorage" "${PODS_CONFIGURATION_BUILD_DIR}/WepinWidget"
+GCC_PREPROCESSOR_DEFINITIONS = $(inherited) COCOAPODS=1
+HEADER_SEARCH_PATHS = $(inherited) "${PODS_CONFIGURATION_BUILD_DIR}/AppAuth/AppAuth.framework/Headers" "${PODS_CONFIGURATION_BUILD_DIR}/BCrypt/BCrypt.framework/Headers" "${PODS_CONFIGURATION_BUILD_DIR}/WepinCommon/WepinCommon.framework/Headers" "${PODS_CONFIGURATION_BUILD_DIR}/WepinLogin/WepinLogin.framework/Headers" "${PODS_CONFIGURATION_BUILD_DIR}/WepinModal/WepinModal.framework/Headers" "${PODS_CONFIGURATION_BUILD_DIR}/WepinNetwork/WepinNetwork.framework/Headers" "${PODS_CONFIGURATION_BUILD_DIR}/WepinSession/WepinSession.framework/Headers" "${PODS_CONFIGURATION_BUILD_DIR}/WepinStorage/WepinStorage.framework/Headers" "${PODS_CONFIGURATION_BUILD_DIR}/WepinWidget/WepinWidget.framework/Headers"
+OTHER_LDFLAGS = $(inherited) -framework "AppAuth" -framework "BCrypt" -framework "SafariServices" -framework "WepinCommon" -framework "WepinLogin" -framework "WepinModal" -framework "WepinNetwork" -framework "WepinSession" -framework "WepinStorage" -framework "WepinWidget" -weak_framework "AuthenticationServices"
+PODS_BUILD_DIR = ${BUILD_DIR}
+PODS_CONFIGURATION_BUILD_DIR = ${PODS_BUILD_DIR}/$(CONFIGURATION)$(EFFECTIVE_PLATFORM_NAME)
+PODS_PODFILE_DIR_PATH = ${SRCROOT}/.
+PODS_ROOT = ${SRCROOT}/Pods
+PODS_XCFRAMEWORKS_BUILD_DIR = $(PODS_CONFIGURATION_BUILD_DIR)/XCFrameworkIntermediates
+USE_RECURSIVE_SCRIPT_INPUTS_IN_SCRIPT_PHASES = YES

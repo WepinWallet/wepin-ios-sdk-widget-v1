@@ -1,0 +1,6 @@
+framework module WepinSession {
+  umbrella header "WepinSession-umbrella.h"
+
+  export *
+  module * { export * }
+}
