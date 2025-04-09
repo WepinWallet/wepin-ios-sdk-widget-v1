@@ -37,7 +37,7 @@ DEPENDENCIES:
   - WepinNetwork (~> 1.1.0)
   - WepinSession (~> 1.1.0)
   - WepinStorage (~> 1.1.0)
-  - WepinWidget (from `../`)
+  - WepinWidget (~> 1.1.0)
 
 SPEC REPOS:
   trunk:
@@ -49,10 +49,7 @@ SPEC REPOS:
     - WepinNetwork
     - WepinSession
     - WepinStorage
-
-EXTERNAL SOURCES:
-  WepinWidget:
-    :path: "../"
+    - WepinWidget
 
 SPEC CHECKSUMS:
   AppAuth: d4f13a8fe0baf391b2108511793e4b479691fb73
@@ -65,6 +62,6 @@ SPEC CHECKSUMS:
   WepinStorage: 9c01d74c7cfe3ab8a6a0541d5d73db87fd7b8883
   WepinWidget: 1b2950ba906fd010f7f602a8ef354db00b632674
 
-PODFILE CHECKSUM: b65661f3afafdfed5c963bf59f590db6d9af5a15
+PODFILE CHECKSUM: 4fc52ab22dd87020fa589107da49df30cb687fb5
 
 COCOAPODS: 1.15.2

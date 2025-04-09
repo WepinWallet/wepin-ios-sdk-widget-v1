@@ -1,6 +1,0 @@
-framework module WepinNetwork {
-  umbrella header "WepinNetwork-umbrella.h"
-
-  export *
-  module * { export * }
-}

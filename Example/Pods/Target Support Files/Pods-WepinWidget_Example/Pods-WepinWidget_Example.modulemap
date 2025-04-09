@@ -1,6 +1,0 @@
-framework module Pods_WepinWidget_Example {
-  umbrella header "Pods-WepinWidget_Example-umbrella.h"
-
-  export *
-  module * { export * }
-}

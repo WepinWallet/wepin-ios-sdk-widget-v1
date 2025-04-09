@@ -1,6 +1,0 @@
-framework module WepinCommon {
-  umbrella header "WepinCommon-umbrella.h"
-
-  export *
-  module * { export * }
-}

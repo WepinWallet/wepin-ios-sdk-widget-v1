@@ -1,6 +1,0 @@
-framework module WepinModal {
-  umbrella header "WepinModal-umbrella.h"
-
-  export *
-  module * { export * }
-}

@@ -1,6 +1,0 @@
-framework module WepinLogin {
-  umbrella header "WepinLogin-umbrella.h"
-
-  export *
-  module * { export * }
-}
