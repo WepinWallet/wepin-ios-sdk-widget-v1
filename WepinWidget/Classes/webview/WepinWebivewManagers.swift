@@ -1,7 +1,6 @@
 import Foundation
 import UIKit
 import WebKit
-import WepinNetwork
 import WepinModal
 import WepinCommon
 
@@ -11,6 +10,7 @@ class WepinWebViewManager {
     private let params: WepinWidgetParams
     private let wepinModal = WepinModal()
     private let baseUrl: String
+    private var modalClosedContinuation: CheckedContinuation<Void, Never>?
     private var responseWepinUserSetDeferred: CheckedContinuation<Bool, Error>?
 //    private var _currentWepinRequest: <String, Any?>? = null
     private var responseDeferred: CheckedContinuation<String, Error>?
@@ -21,9 +21,20 @@ class WepinWebViewManager {
         self.baseUrl = baseUrl
     }
     
-    public func openWidget(viewController: UIViewController) {
-        WepinWidgetManager.shared.currentWepinRequest = nil
-        wepinModal.openModal(on: viewController, url: baseUrl, jsProcessor: JSProcessor.processRequest(request:webView:callback:))
+//    public func openWidget(viewController: UIViewController, awaitModalClose: Bool = false) {
+//        WepinWidgetManager.shared.currentWepinRequest = nil
+//        wepinModal.openModal(on: viewController, url: baseUrl, jsProcessor: JSProcessor.processRequest(request:webView:callback:))
+//    }
+    
+    public func openWidget(viewController: UIViewController, awaitModalClose: Bool = false) async {
+        if awaitModalClose {
+            await withCheckedContinuation { continuation in
+                self.modalClosedContinuation = continuation
+                self.wepinModal.openModal(on: viewController, url: baseUrl, jsProcessor: JSProcessor.processRequest(request:webView:callback:))
+            }
+        } else {
+            self.wepinModal.openModal(on: viewController, url: baseUrl, jsProcessor: JSProcessor.processRequest(request:webView:callback:))
+        }
     }
     
     public func openWidgetWithCommand(
@@ -87,6 +98,15 @@ class WepinWebViewManager {
     
     func closeWidget() {
         wepinModal.closeModal()
+        notifyModalClosed()
+    }
+    
+    func notifyModalClosed() {
+        modalClosedContinuation?.resume()
+        modalClosedContinuation = nil
+
+        // ✅ loginWithUI 흐름이 남아있다면 실패로 종료
+        completeResponseWepinUserDeferred(success: false)
     }
     
     // for set_local_storage 에서 유저 정보가 있는 경우 수행하기 위해

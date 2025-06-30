@@ -1,8 +1,7 @@
 import Foundation
-import WepinNetwork
+import WepinCore
 import UIKit
 import WepinCommon
-import WepinSession
 import WepinLogin
 
 public class WepinWidget {
@@ -19,7 +18,18 @@ public class WepinWidget {
     
     
     // MARK: - Initialization
-    public init(wepinWidgetParams: WepinWidgetParams, platformType: String = "ios") throws {
+    public init(wepinWidgetParams: WepinWidgetParams, platformType: String = "ios") {
+        self.wepinWidgetParams = wepinWidgetParams
+        self.platformType = platformType
+        self.wepinWidgetManager = WepinWidgetManager.shared
+    }
+    
+    // MARK: - Public Methods
+    public func initialize(attributes: WepinWidgetAttribute?) async throws -> Bool {
+        if _isInitialized {
+            throw WepinError.alreadyInitialized
+        }
+        
         guard let _ = wepinWidgetParams.viewController else {
             throw WepinError.invalidParameter("ViewController is required")
         }
@@ -30,32 +40,15 @@ public class WepinWidget {
             throw WepinError.invalidParameter("AppKey is required")
         }
         
-        self.wepinWidgetParams = wepinWidgetParams
-        self.platformType = platformType
-        self.wepinWidgetManager = WepinWidgetManager.shared
-    }
-    
-    // MARK: - Public Methods
-    public func initialize(attributes: WepinWidgetAttribute) async throws -> Bool {
-        if _isInitialized {
-            throw WepinError.alreadyInitialized
-        }
-        
         try await wepinWidgetManager.initialize(params: wepinWidgetParams, attributes: attributes, platformType: platformType)
 
-        if !WepinNetwork.shared.isInitialized() {
+        if !WepinCore.shared.network.isInitialized() {
             throw WepinError.networkNotInitialized
         }
         
-        _ = await WepinSessionManager.shared.checkLoginStatusAndGetLifeCycle()
+        _ = await WepinCore.shared.session.checkLoginStatusAndGetLifeCycle()
         
-        do {
-            _ = try await WepinNetwork.shared.getAppInfo()
-            _isInitialized = true
-            _ = try await getStatus()
-        } catch {
-            throw error
-        }
+        _isInitialized = true         
         
         return _isInitialized
     }
@@ -76,7 +69,7 @@ public class WepinWidget {
             return .notInitialized
         }
         
-        return await WepinSessionManager.shared.checkLoginStatusAndGetLifeCycle() ?? .notInitialized
+        return await WepinCore.shared.session.checkLoginStatusAndGetLifeCycle()
     }
     
     public func openWidget(viewController: UIViewController) async throws -> Bool {
@@ -90,7 +83,7 @@ public class WepinWidget {
             throw WepinError.incorrectLifeCycle("The LifeCycle is not login")
         }
         
-        wepinWidgetManager.wepinWebViewManager?.openWidget(viewController: viewController)
+        await wepinWidgetManager.wepinWebViewManager?.openWidget(viewController: viewController, awaitModalClose: true)
         return true
     }
     
@@ -122,14 +115,18 @@ public class WepinWidget {
         var status = try await getStatus()
         
         if status == .login {
-            if let user = WepinSessionManager.shared.getWepinUser() {
+            if let user = WepinCore.shared.session.getWepinUser() {
                 return user
             } else {
                 throw WepinError.userNotFound
             }
         } else {
 //            wepinWidgetManager.wepinSessionManager?.lifecycle = .beforeLogin
-            wepinWidgetManager.setSpecifiedEmail(email ?? "")
+            if email != nil && login?.regex?.validateEmail(email) ?? false {
+                wepinWidgetManager.setSpecifiedEmail(email ?? "")
+            } else {
+                wepinWidgetManager.setSpecifiedEmail("")
+            }
             
             if !loginProviders.isEmpty {
                 wepinWidgetManager.wepinAttributes?.loginProviders = loginProviders.map { $0.provider }
@@ -139,12 +136,12 @@ public class WepinWidget {
                 wepinWidgetManager.loginProviderInfos = []
             }
             
-            wepinWidgetManager.wepinWebViewManager?.openWidget(viewController: viewController)
+            await wepinWidgetManager.wepinWebViewManager?.openWidget(viewController: viewController)
             
             let result = try await wepinWidgetManager.wepinWebViewManager?.getResponseWepinUserDeferred() ?? false
             
             if result {
-                if let user = WepinSessionManager.shared.getWepinUser() {
+                if let user = WepinCore.shared.session.getWepinUser() {
                     status = try await getStatus()
                     try closeWidget()
                     return user
@@ -172,7 +169,7 @@ public class WepinWidget {
             throw WepinError.incorrectLifeCycle("The LifeCycle is not loginBeforeRegister")
         }
 
-        guard let userInfo = WepinSessionManager.shared.getWepinUser() else {
+        guard let userInfo = WepinCore.shared.session.getWepinUser() else {
             throw WepinError.incorrectLifeCycle("The userInfo is null")
         }
 
@@ -187,7 +184,7 @@ public class WepinWidget {
             }
 
             // ✅ register → updateTermsAccepted → checkLoginStatusAndGetLifeCycle → return updated user
-            _ = try await WepinNetwork.shared.register(
+            _ = try await WepinCore.shared.network.register(
                 request: RegisterRequest(
                     appId: wepinWidgetManager.appId,
                     userId: userId,
@@ -196,25 +193,26 @@ public class WepinWidget {
                 )
             )
 
-            _ = try await WepinNetwork.shared.updateTermsAccepted(
+            _ = try await WepinCore.shared.network.updateTermsAccepted(
                 userId: userId,
                 request: UpdateTermsAcceptedRequest(
                     termsAccepted: ITermsAccepted(termsOfService: true, privacyPolicy: true)
                 )
             )
 
-            _ = await WepinSessionManager.shared.checkLoginStatusAndGetLifeCycle()
+            _ = await WepinCore.shared.session.checkLoginStatusAndGetLifeCycle()
 
-            guard let updatedUser = WepinSessionManager.shared.getWepinUser() else {
+            guard let updatedUser = WepinCore.shared.session.getWepinUser() else {
                 throw WepinError.failedRegister
             }
 
             return updatedUser
         } else {
+            let pinRequired = userStatus.pinRequired ?? (userStatus.loginStatus == WepinLoginStatus.pinRequired)
             // ✅ registerRequired가 아니면 widget 통해 등록
             let parameter: [String: Any] = [
                 "loginStatus": userStatus.loginStatus.rawValue,
-                "pinRequired": userStatus.pinRequired ?? false
+                "pinRequired": pinRequired
             ]
 
             let result = try await wepinWidgetManager.wepinWebViewManager?.openWidgetWithCommand(
@@ -223,7 +221,7 @@ public class WepinWidget {
                 parameter: parameter
             )
 
-            _ = await WepinSessionManager.shared.checkLoginStatusAndGetLifeCycle()
+            _ = await WepinCore.shared.session.checkLoginStatusAndGetLifeCycle()
 
             if let result = result,
                let data = result.data(using: .utf8),
@@ -231,7 +229,7 @@ public class WepinWidget {
                let body = json["body"] as? [String: Any],
                let state = body["state"] as? String, state == "SUCCESS" {
 
-                guard let updatedUser = WepinSessionManager.shared.getWepinUser() else {
+                guard let updatedUser = WepinCore.shared.session.getWepinUser() else {
                     throw WepinError.failedRegister
                 }
 
@@ -251,14 +249,14 @@ public class WepinWidget {
             throw WepinError.incorrectLifeCycle("The LifeCycle is not login")
         }
 
-        guard let userInfo = WepinSessionManager.shared.getWepinUser(),
+        guard let userInfo = WepinCore.shared.session.getWepinUser(),
               let userId = userInfo.userInfo?.userId,
               let walletId = userInfo.walletId,
               let localeId = wepinWidgetManager.wepinAttributes?.defaultLanguage else {
             throw WepinError.invalidLoginSession("The userId or walletId is null")
         }
 
-        let accountList = try await WepinNetwork.shared.getAccountList(
+        let accountList = try await WepinCore.shared.network.getAccountList(
             request: GetAccountListRequest(walletId: walletId, userId: userId, locale: localeId)
         )
 
@@ -318,14 +316,14 @@ public class WepinWidget {
             throw WepinError.incorrectLifeCycle("The LifeCycle is not login")
         }
 
-        guard let userInfo = WepinSessionManager.shared.getWepinUser(),
+        guard let userInfo = WepinCore.shared.session.getWepinUser(),
               let userId = userInfo.userInfo?.userId,
               let walletId = userInfo.walletId,
               let localeId = wepinWidgetManager.wepinAttributes?.defaultLanguage else {
             throw WepinError.invalidLoginSession("The userId or walletId is null")
         }
 
-        let accountList = try await WepinNetwork.shared.getAccountList(
+        let accountList = try await WepinCore.shared.network.getAccountList(
             request: GetAccountListRequest(walletId: walletId, userId: userId, locale: localeId)
         )
 
@@ -396,7 +394,7 @@ public class WepinWidget {
             throw WepinError.incorrectLifeCycle("The LifeCycle is not login")
         }
         
-        guard let userInfo = WepinSessionManager.shared.getWepinUser(),
+        guard let userInfo = WepinCore.shared.session.getWepinUser(),
                   let userId = userInfo.userInfo?.userId,
                   let walletId = userInfo.walletId,
                   let localeId = wepinWidgetManager.wepinAttributes?.defaultLanguage else {
@@ -405,7 +403,7 @@ public class WepinWidget {
             
         let request = GetAccountListRequest(walletId: walletId, userId: userId, locale: localeId)
         
-        let accountList = try await WepinNetwork.shared.getAccountList(request: request)
+        let accountList = try await WepinCore.shared.network.getAccountList(request: request)
         
 //        if(accountList == nil) {
 //            throw WepinError.accountNotFound
@@ -436,14 +434,14 @@ public class WepinWidget {
             throw WepinError.incorrectLifeCycle("The LifeCycle is not login")
         }
 
-        guard let userInfo = WepinSessionManager.shared.getWepinUser(),
+        guard let userInfo = WepinCore.shared.session.getWepinUser(),
               let userId = userInfo.userInfo?.userId,
               let walletId = userInfo.walletId,
               let localeId = wepinWidgetManager.wepinAttributes?.defaultLanguage else {
             throw WepinError.invalidLoginSession("The userId or walletId is null")
         }
 
-        let accountList = try await WepinNetwork.shared.getAccountList(
+        let accountList = try await WepinCore.shared.network.getAccountList(
             request: GetAccountListRequest(walletId: walletId, userId: userId, locale: localeId)
         )
 

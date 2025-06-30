@@ -1,9 +1,7 @@
 import Foundation
 import UIKit
 import WebKit
-import WepinNetwork
-import WepinStorage
-import WepinSession
+import WepinCore
 import WepinCommon
 import WepinLogin
 
@@ -27,7 +25,7 @@ class WepinWidgetManager {
     public var currentViewController :UIViewController?
     
     // MARK: - Public Methods
-    func initialize(params: WepinWidgetParams, attributes: WepinWidgetAttribute, platformType: String? = "ios") async throws {
+    func initialize(params: WepinWidgetParams, attributes: WepinWidgetAttribute?, platformType: String? = "ios") async throws {
         appId = params.appId
         appKey = params.appKey
         
@@ -41,13 +39,11 @@ class WepinWidgetManager {
         // TODO: version 가져오는 방법!!
         version = Bundle(for: WepinWidget.self).infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.1.0"
         
-        print("WepinWidget version: \(version)")
-        wepinAttributes = WepinAttributeWithProviders(defaultLanguage: attributes.defaultLanguage, defaultCurrency: attributes.defaultCurrency)
+        wepinAttributes = WepinAttributeWithProviders(defaultLanguage: attributes?.defaultLanguage, defaultCurrency: attributes?.defaultCurrency)
                 
-        try WepinNetwork.shared.initialize(appKey: appKey, domain: domain, sdkType: sdkType, version: version)
+        try await WepinCore.shared.initialize(appId: appId, appKey: appKey, domain: domain, sdkType: sdkType, version: version)
             
         wepinWebViewManager = WepinWebViewManager(params: params, baseUrl: url)
-        WepinSessionManager.shared.initialize(appId: appId, sdkType: platformType ?? "ios")
         
         let wepinLoginParams = WepinLoginParams(appId: appId, appKey: appKey)
         wepinLoginLib = WepinLogin(wepinLoginParams)
@@ -65,9 +61,8 @@ class WepinWidgetManager {
     
     func finalize() {
         wepinLoginLib?.finalize()
-        WepinNetwork.shared.finalize()
         wepinWebViewManager = nil
-        WepinSessionManager.shared.finalize()
+        WepinCore.shared.finalize()
         wepinAttributes = nil
         loginProviderInfos.removeAll()
         specifiedEmail = ""

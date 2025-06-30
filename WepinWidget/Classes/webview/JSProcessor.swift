@@ -2,7 +2,7 @@ import Foundation
 import WepinLogin
 import WebKit
 import WepinCommon
-import WepinStorage
+import WepinCore
 
 struct Command {
     static let CMD_READY_TO_WIDGET = "ready_to_widget"
@@ -12,18 +12,18 @@ struct Command {
     static let CMD_SET_USER_EMAIL = "set_user_email"
     static let CMD_GET_CLIPBOARD = "get_clipboard"
     static let CMD_GET_LOGIN_INFO = "get_login_info"
-
+    
     // Request Commands
     static let CMD_REGISTER_WEPIN = "register_wepin"
     static let CMD_SEND_TRANSACTION_WITHOUT_PROVIDER = "send_transaction_without_provider"
     static let CMD_RECEIVE_ACCOUNT = "receive_account"
-
+    
     private static let responseCommands: Set<String> = [
         CMD_REGISTER_WEPIN,
         CMD_SEND_TRANSACTION_WITHOUT_PROVIDER,
         CMD_RECEIVE_ACCOUNT
     ]
-
+    
     static func isResponseCommand(command: String) -> Bool {
         return responseCommands.contains(command)
     }
@@ -38,8 +38,6 @@ struct State {
 
 class JSProcessor {
     static func processRequest(request: String, webView: WKWebView, callback: @escaping (String) -> Void) {
-        print("processRequest")
-        print("request: \(request)")
         do {
             let jsonData = request.data(using: .utf8)!
             let jsonObject = try JSONSerialization.jsonObject(with: jsonData, options: []) as! [String: Any]
@@ -82,7 +80,7 @@ class JSProcessor {
                 let type = WepinWidgetManager.shared.sdkType
                 let version = WepinWidgetManager.shared.version
                 let attributes = WepinWidgetManager.shared.wepinAttributes
-                let storageData = WepinStorage.shared.getAllStorage()
+                let storageData = WepinCore.shared.storage.getAllStorage()
                 jsResponse = JSResponse.Builder(
                     id: "\(id)",
                     requestFrom: requestFrom,
@@ -101,20 +99,20 @@ class JSProcessor {
             case Command.CMD_GET_SDK_REQUEST:
                 print("CMD_GET_SDK_REQUEST")
                 let requestData: AnyCodable
-
+                
                 if let currentRequest = WepinWidgetManager.shared.currentWepinRequest {
                     requestData = AnyCodable(convertToAnyCodableDictionary(currentRequest))
                 } else {
                     requestData = AnyCodable("No request")
                 }
-
+                
                 jsResponse = JSResponse.Builder(
                     id: "\(id)",
                     requestFrom: requestFrom,
                     command: command,
                     state: State.STATE_SUCCESS
                 ).setBodyData(parameter: requestData)
-                 .build()
+                    .build()
             case Command.CMD_SET_LOCAL_STORAGE:
                 print("CMD_SET_LOCAL_STORAGE")
                 do {
@@ -149,8 +147,8 @@ class JSProcessor {
                         // 처리된 값을 storageDataMap에 추가
                         storageDataMap[key] = storageValue
                     }
-
-                    WepinStorage.shared.setAllStorage(data: storageDataMap)
+                    
+                    WepinCore.shared.storage.setAllStorage(data: storageDataMap)
                     if storageDataMap["user_info"] != nil {
                         WepinWidgetManager.shared.wepinWebViewManager?.completeResponseWepinUserDeferred(success: true)
                     }
@@ -162,7 +160,7 @@ class JSProcessor {
                     ).build()
                 } catch {
                     print("Error processing JSON data: \(error.localizedDescription)")
-//                    throw WepinError.generalUnKnownEx(error.localizedDescription)
+                    //                    throw WepinError.generalUnKnownEx(error.localizedDescription)
                 }
             case Command.CMD_SET_USER_EMAIL:
                 print("CMD_SET_USER_EMAIL")
@@ -193,7 +191,7 @@ class JSProcessor {
                               !provider.isEmpty else {
                             throw NSError(domain: "InvalidProvider", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing or invalid provider"])
                         }
-
+                        
                         // clientId 매핑
                         let providerToClientIdMap = WepinWidgetManager.shared.loginProviderInfos.reduce(into: [String: String]()) {
                             $0[$1.provider] = $1.clientId
@@ -201,103 +199,133 @@ class JSProcessor {
                         guard let clientId = providerToClientIdMap[provider] else {
                             throw NSError(domain: "MissingClientId", code: -1, userInfo: [NSLocalizedDescriptionKey: "Missing clientId for provider"])
                         }
-
+                        
                         // ViewController 및 wepinLoginLib 체크
                         guard let viewController = WepinWidgetManager.shared.currentViewController,
-//                              viewController.isViewLoaded, // 여긴 await 안 붙여도 되는 sync 프로퍼티
+                              //                              viewController.isViewLoaded, // 여긴 await 안 붙여도 되는 sync 프로퍼티
                               let loginLib = WepinWidgetManager.shared.wepinLoginLib else {
                             throw WepinError.loginFailed
                         }
-
+                        
                         // 로그인 요청
                         let oauthParams = WepinLoginOauth2Params(provider: provider, clientId: clientId)
                         let loginResponse = try await loginLib.loginWithOauthProvider(params: oauthParams, viewController: viewController)
-
-                        // Firebase 로그인
-                        let firebaseRes: WepinLoginResult?
-                        switch loginResponse.type {
-                        case .idToken:
-                            let idTokenParams = WepinLoginOauthIdTokenRequest(idToken: loginResponse.token)
-                            firebaseRes = try await loginLib.loginWithIdToken(params: idTokenParams)
-                        case .accessToken:
-                            let accessTokenParams = WepinLoginOauthAccessTokenRequest(provider: provider, accessToken: loginResponse.token)
-                            firebaseRes = try await loginLib.loginWithAccessToken(params: accessTokenParams)
-                        }
-
-                        // 성공 응답
-                        let jsResponse = JSResponse.Builder(
-                            id: "\(id)",
-                            requestFrom: requestFrom,
-                            command: command,
-                            state: State.STATE_SUCCESS
-                        ).setBodyData(parameter: firebaseRes?.toDictionary()).build()
-
                         do {
+                            // Firebase 로그인
+                            let firebaseRes: WepinLoginResult?
+                            switch loginResponse.type {
+                            case .idToken:
+                                let idTokenParams = WepinLoginOauthIdTokenRequest(idToken: loginResponse.token)
+                                firebaseRes = try await loginLib.loginWithIdToken(params: idTokenParams)
+                            case .accessToken:
+                                let accessTokenParams = WepinLoginOauthAccessTokenRequest(provider: provider, accessToken: loginResponse.token)
+                                firebaseRes = try await loginLib.loginWithAccessToken(params: accessTokenParams)
+                            }
+                            
+                            // 성공 응답
+                            let jsResponse = JSResponse.Builder(
+                                id: "\(id)",
+                                requestFrom: requestFrom,
+                                command: command,
+                                state: State.STATE_SUCCESS
+                            ).setBodyData(parameter: firebaseRes?.toDictionary()).build()
+                            
                             let responseData = try JSONEncoder().encode(jsResponse)
                             if let responseString = String(data: responseData, encoding: .utf8) {
                                 //print("JSProcessor Response: \(responseString)")
                                 
                                 // 웹뷰가 존재하는지 안전하게 체크
-        //                        guard let webView = webView else {
-        //                            print("Error: WebView is nil")
-        //
-        //                            return
-        //                        }
+                                //                        guard let webView = webView else {
+                                //                            print("Error: WebView is nil")
+                                //
+                                //                            return
+                                //                        }
                                 
                                 // 웹뷰로 응답 전송
                                 sendResponseToWebView(response: responseString, webView: webView)
-          
+                                
                             }
                         } catch {
                             print("Error encoding JSResponse: \(error.localizedDescription)")
+                            if let wepinError = error as? WepinError,
+                               case .requiredSignupEmail = wepinError {
+                                
+                                print("error: requiredSignupEmail detected")
+                                
+                                var responseBody: [String: AnyCodable] = ["result": AnyCodable("no_email")]
+                                
+                                // loginResponse.type에 따라 적절한 토큰 타입 설정
+                                switch loginResponse.type {
+                                case .idToken:
+                                    responseBody["idToken"] = AnyCodable(loginResponse.token)
+                                case .accessToken:
+                                    responseBody["accessToken"] = AnyCodable(loginResponse.token)
+                                }
+                                
+                                let jsResponse = JSResponse.Builder(
+                                    id: "\(id)",
+                                    requestFrom: requestFrom,
+                                    command: command,
+                                    state: State.STATE_SUCCESS
+                                ).setBodyData(parameter: responseBody).build()
+                                
+                                let responseData = try JSONEncoder().encode(jsResponse)
+                                if let responseString = String(data: responseData, encoding: .utf8) {
+                                    sendResponseToWebView(response: responseString, webView: webView)
+                                }
+                                
+                            } else {
+                                // 다른 Firebase 에러는 외부 catch로 전달
+                                throw error
+                            }
                         }
-//                        if let responseData = try? JSONSerialization.data(withJSONObject: jsResponse!, options: []),
-//                           let responseString = String(data: responseData, encoding: .utf8) {
-//                            callback(responseString)
-//                        }
-
+                        //                        if let responseData = try? JSONSerialization.data(withJSONObject: jsResponse!, options: []),
+                        //                           let responseString = String(data: responseData, encoding: .utf8) {
+                        //                            callback(responseString)
+                        //                        }
+                        
                     } catch {
                         // 에러 응답
                         // 에러 state 를 STATE_ERROR 로 하면 user_canceled error 못잡음
-                        let jsResponse = JSResponse.Builder(
+                        
+                        jsResponse = JSResponse.Builder(
                             id: "\(id)",
                             requestFrom: requestFrom,
                             command: command,
                             state: State.STATE_SUCCESS
                         ).setBodyData(parameter: ["error": AnyCodable(error.localizedDescription)]).build()
-
+                        
+                        
                         do {
                             let responseData = try JSONEncoder().encode(jsResponse)
                             if let responseString = String(data: responseData, encoding: .utf8) {
                                 //print("JSProcessor Response: \(responseString)")
                                 
                                 // 웹뷰가 존재하는지 안전하게 체크
-        //                        guard let webView = webView else {
-        //                            print("Error: WebView is nil")
-        //
-        //                            return
-        //                        }
+                                //                        guard let webView = webView else {
+                                //                            print("Error: WebView is nil")
+                                //
+                                //                            return
+                                //                        }
                                 
                                 // 웹뷰로 응답 전송
                                 sendResponseToWebView(response: responseString, webView: webView)
-          
+                                
                             }
                         } catch {
                             print("Error encoding JSResponse: \(error.localizedDescription)")
                         }
-//                        if let responseData = try? JSONSerialization.data(withJSONObject: jsResponse!, options: []),
-//                           let responseString = String(data: responseData, encoding: .utf8) {
-//                            callback(responseString)
-//                        }
+                        //                        if let responseData = try? JSONSerialization.data(withJSONObject: jsResponse!, options: []),
+                        //                           let responseString = String(data: responseData, encoding: .utf8) {
+                        //                            callback(responseString)
+                        //                        }
                     }
                     return
                 }
             case Command.CMD_CLOSE_WEPIN_WIDGET:
-                print("")
                 jsResponse = nil
                 WepinWidgetManager.shared.wepinWebViewManager?.closeWidget()
             case Command.CMD_REGISTER_WEPIN, Command.CMD_SEND_TRANSACTION_WITHOUT_PROVIDER, Command.CMD_RECEIVE_ACCOUNT:
-                print("")
                 // ✅ request 자체를 그대로 async 작업을 기다리던 쪽으로 넘겨주기
                 WepinWidgetManager.shared.wepinWebViewManager?.completeResponseDeferred(request)
             default:
@@ -312,15 +340,15 @@ class JSProcessor {
                         //print("JSProcessor Response: \(responseString)")
                         
                         // 웹뷰가 존재하는지 안전하게 체크
-//                        guard let webView = webView else {
-//                            print("Error: WebView is nil")
-//                            
-//                            return
-//                        }
+                        //                        guard let webView = webView else {
+                        //                            print("Error: WebView is nil")
+                        //
+                        //                            return
+                        //                        }
                         
                         // 웹뷰로 응답 전송
                         sendResponseToWebView(response: responseString, webView: webView)
-  
+                        
                     }
                 } catch {
                     print("Error encoding JSResponse: \(error.localizedDescription)")
@@ -328,7 +356,7 @@ class JSProcessor {
             } else {
                 print("Error: jsResponse is nil")
             }
-
+            
         } catch {
             print("Error parsing JSON: \(error)")
         }
@@ -337,7 +365,6 @@ class JSProcessor {
     // 웹뷰에 응답하는 함수
     private static func sendResponseToWebView(response: String, webView: WKWebView) {
         // JavaScript 실행을 통해 웹뷰로 응답을 전송
-        print("response: \(response)")
         DispatchQueue.main.async {
             let message = "onResponse(" + response + ");"
             webView.evaluateJavaScript(message) { (result, error) in
@@ -347,7 +374,7 @@ class JSProcessor {
             }
         }
     }
-
+    
 }
 
 func convertToAnyCodable(_ value: Any) -> AnyCodable {

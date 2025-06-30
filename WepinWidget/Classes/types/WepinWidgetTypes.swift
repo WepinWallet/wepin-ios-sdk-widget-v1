@@ -1,10 +1,10 @@
 import Foundation
 @_exported import WepinCommon
-import WepinNetwork
+import WepinCore
 import UIKit
 
 public struct WepinWidgetParams {
-    public let viewController: UIViewController?
+    public let viewController: UIViewController?    //TODO: - 필요 없는 항목. 메이저 버전 업데이트 시 삭제.-
     public let appId: String
     public let appKey: String
     public let domain: String?
@@ -50,7 +50,7 @@ public struct WepinAccount {
     public let contract: String?
     public let isAA: Bool?
     
-    init(network: String, address: String, contract: String? = nil, isAA: Bool? = false) {
+    public init(network: String, address: String, contract: String? = nil, isAA: Bool? = false) {
         self.network = network
         self.address = address
         self.contract = contract
