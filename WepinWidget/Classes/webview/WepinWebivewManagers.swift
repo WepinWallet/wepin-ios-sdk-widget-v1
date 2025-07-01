@@ -8,7 +8,7 @@ class WepinWebViewManager {
     // MARK: - Properties
     private var webView: WKWebView?
     private let params: WepinWidgetParams
-    private let wepinModal = WepinModal()
+    internal let wepinModal = WepinModal()
     private let baseUrl: String
     private var modalClosedContinuation: CheckedContinuation<Void, Never>?
     private var responseWepinUserSetDeferred: CheckedContinuation<Bool, Error>?

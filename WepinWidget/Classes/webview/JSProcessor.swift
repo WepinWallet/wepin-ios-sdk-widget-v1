@@ -201,15 +201,27 @@ class JSProcessor {
                         }
                         
                         // ViewController 및 wepinLoginLib 체크
-                        guard let viewController = WepinWidgetManager.shared.currentViewController,
-                              //                              viewController.isViewLoaded, // 여긴 await 안 붙여도 되는 sync 프로퍼티
-                              let loginLib = WepinWidgetManager.shared.wepinLoginLib else {
-                            throw WepinError.loginFailed
-                        }
+                        guard let loginLib = WepinWidgetManager.shared.wepinLoginLib else {
+              throw WepinError.loginFailed
+            }
+            
+            let viewControllerForOAuth: UIViewController
+            
+            if let modalVC = WepinWidgetManager.shared.wepinWebViewManager?.wepinModal.getCurrentModalViewController() {
+              // Modal의 ViewController 사용
+              viewControllerForOAuth = modalVC
+              print("🔧 Using Modal ViewController for OAuth")
+            } else if let currentVC = WepinWidgetManager.shared.currentViewController {
+              // Fallback: 기존 방식
+              viewControllerForOAuth = currentVC
+              print("🔧 Using Current ViewController for OAuth")
+            } else {
+              throw WepinError.loginFailed
+            }
                         
                         // 로그인 요청
                         let oauthParams = WepinLoginOauth2Params(provider: provider, clientId: clientId)
-                        let loginResponse = try await loginLib.loginWithOauthProvider(params: oauthParams, viewController: viewController)
+                        let loginResponse = try await loginLib.loginWithOauthProvider(params: oauthParams, viewController: viewControllerForOAuth)
                         do {
                             // Firebase 로그인
                             let firebaseRes: WepinLoginResult?
