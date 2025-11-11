@@ -10,9 +10,9 @@ target 'WepinWidget_Example' do
   pod 'WepinCommon', '~> 1.1.2'
   pod 'WepinCore', '~> 1.1.2'
   pod 'WepinModal', '~> 1.1.2'
-  pod 'WepinLogin', '~> 1.1.2'
+  pod 'WepinLogin', '~> 1.2.0'
   # pod 'WepinWidget', :path => '../'
-  pod 'WepinWidget', '~> 1.1.2'
+  pod 'WepinWidget', '~> 1.2.0'
 
   target 'WepinWidget_Tests' do
     inherit! :search_paths

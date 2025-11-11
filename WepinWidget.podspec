@@ -8,7 +8,7 @@
 
 Pod::Spec.new do |s|
   s.name             = 'WepinWidget'
-  s.version          = '1.1.2-beta'
+  s.version          = '1.2.0'
   s.summary          = 'A short description of WepinWidget.'
   s.swift_version    = '5.0'
 
@@ -46,6 +46,6 @@ TODO: Add long description of the pod here.
   s.dependency 'WepinCore', '~> 1.1.2'
   # s.dependency 'WepinModal', '~> 1.1.2'
   s.dependency 'WepinModal', '1.1.2-beta'
-  s.dependency 'WepinLogin', '~> 1.1.2'
+  s.dependency 'WepinLogin', '~> 1.2.0'
 #  s.dependency 'WepinLogin'
 end
