@@ -44,8 +44,7 @@ TODO: Add long description of the pod here.
   # s.dependency 'AFNetworking', '~> 2.3'
   s.dependency 'WepinCommon', '~> 1.2.1'
   s.dependency 'WepinCore', '~> 1.2.1'
-  # s.dependency 'WepinModal', '~> 1.2.1'
-  s.dependency 'WepinModal', '1.2.1'
+  s.dependency 'WepinModal', '~> 1.2.1'
   s.dependency 'WepinLogin', '~> 1.2.1'
 #  s.dependency 'WepinLogin'
 end
